@@ -1,0 +1,5 @@
+time,strategy,identifier,symbol,side,type,status,multiplier,time_in_force,asset.strike,asset.multiplier,asset.asset_type,price,filled_quantity,trade_cost
+2020-01-02 09:30:00-05:00,SentimentStrat,b71366ee5b5e4bd3855afedcc37af3a7,SPY,buy,market,new,1,gtc,0.0,1,stock,,,
+2020-01-02 09:30:00-05:00,SentimentStrat,b71366ee5b5e4bd3855afedcc37af3a7,SPY,buy,market,fill,1,gtc,0.0,1,stock,323.5400085449219,10.0,0.0
+2020-02-28 08:30:00-05:00,SentimentStrat,db66cac751e44059b087330739ced72c,SPY,sell,limit,canceled,1,day,0.0,1,stock,,,
+2020-02-28 08:30:00-05:00,SentimentStrat,1aa530fb51094136a8c5d2ef8f9c9396,SPY,sell,stop,fill,1,day,0.0,1,stock,288.70001220703125,10.0,0.0
