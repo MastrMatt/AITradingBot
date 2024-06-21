@@ -25,8 +25,17 @@ ALPACA_CONFIG = {"API_KEY": API_KEY, "API_SECRET": API_SECRET, "PAPER": True}
 
 
 # Define the strategy
+#! NEED TO ADD ROBUSTNESS IF TRADES ARE NOT EXECUTED
+
+
 class SentimentStrat(Strategy):
-    def initialize(self, symbol: str, cash_at_risk: float):
+    def initialize(
+        self,
+        symbol: str,
+        cash_at_risk: float,
+        threshold_score: float,
+        threshold_ratio: float,
+    ):
         # Initialize alpaca API
         self.api = REST(API_KEY, API_SECRET, ENDPOINT)
 
@@ -37,8 +46,12 @@ class SentimentStrat(Strategy):
         self.sleep_time = "24H"
 
         # Set up my own custom parameters as class attributes
-        self.last_trade = None
         self.cash_at_risk = cash_at_risk
+        self.threshold_score = threshold_score
+        self.threshold_ratio = threshold_ratio
+
+        # some class attributes
+        self.last_trade = None
 
     def position_sizing(self):
         """
@@ -48,37 +61,11 @@ class SentimentStrat(Strategy):
 
         cash = self.get_cash()
 
-        # Get the last price of the stock
+        # Get the last known price of the stock
         last_price = self.get_last_price(self.symbol)
         quantity = round(cash * self.cash_at_risk / last_price, 0)
 
         return cash, last_price, quantity
-
-    def on_trading_iteration(self):
-
-        # Determine the number of shares to buy
-        cash, last_price, quantity = self.position_sizing()
-
-        # Additional check to ensure enough cash to buy
-        if cash < last_price:
-            return
-
-        if self.last_trade is None:
-            news = self.get_news(days_prior=5)
-            print(news)
-
-            # Setup the order, gain 30% and lose 10%
-            order = self.create_order(
-                self.symbol,
-                10,
-                "buy",
-                type="bracket",
-                take_profit_price=last_price * 1.3,
-                stop_loss_price=last_price * 0.9,
-            )
-
-            self.submit_order(order)
-            self.last_trade = "buy"
 
     def get_dates_news(self, days_prior):
         """
@@ -102,9 +89,63 @@ class SentimentStrat(Strategy):
 
         return start_time, end_time
 
-    def get_news(self, days_prior: int = 2):
+    def sentiments_thresholding(self, sentiments):
         """
-        Get news data from the news API
+        Aggregate the sentiment analysis results and return the final sentiment
+
+        Args:
+        sentiments: list, the sentiment analysis results
+        threshold_score: float, the confidence score for the sentiment to be considered positive or negative
+        threshold_ratio: float, the ratio of positive or negative sentiments to achieve
+        goal_sentiment: str, the goal sentiment to achieve (positive or negative)
+
+        Returns:
+        threshold_met: bool, whether the threshold for the sentiment is met
+        """
+        # Get the number of positive, negative, and neutral sentiments
+        positive_count = 0
+        negative_count = 0
+        neutral_count = 0
+
+        positive_threshold_met = False
+        negative_threshold_met = False
+
+        for sentiment in sentiments:
+            if (
+                sentiment["label"] == "positive"
+                and sentiment["score"] >= self.threshold_score
+            ):
+                positive_count += 1
+            elif (
+                sentiment["label"] == "negative"
+                and sentiment["score"] >= self.threshold_score
+            ):
+                negative_count += 1
+            else:
+                neutral_count += 1
+
+        # Get the total number of sentiments
+        total_count = positive_count + negative_count + neutral_count
+
+        # Get the ratio of positive and negative sentiments
+        positive_ratio = positive_count / total_count
+        negative_ratio = negative_count / total_count
+
+        # Check if the threshold for the sentiment is met
+        if positive_ratio >= self.threshold_ratio:
+            positive_threshold_met = True
+
+        if negative_ratio >= self.threshold_ratio:
+            negative_threshold_met = True
+
+        return (positive_threshold_met, negative_threshold_met)
+
+    def get_sentiments_signal(self, days_prior: int = 3):
+        """
+
+        Get the sentiment signal for the stock based on the news. The signal is based on the sentiment analysis of the news articles. The signal is positive if the sentiment is positive and the confidence score is above the threshold, and the signal is negative if the sentiment is negative and the confidence score is above the threshold.
+
+
         """
 
         start_time, end_time = self.get_dates_news(days_prior)
@@ -119,22 +160,81 @@ class SentimentStrat(Strategy):
 
             news[index] = headline + summary
 
-        # Extract the headlines
-        headlines = [article.__dict__["_raw"]["headline"] for article in news]
+        # perform sentiment analysis on the news
+        sentiments = finbert_analysis.get_sentiment(news)
 
-        # Extract the summary
-        summary = [article.__dict__["_raw"]["summary"] for article in news]
+        # perform thresholding on the sentiments
+        positive_threshold_met, negative_threshold_met = self.sentiments_thresholding(
+            sentiments
+        )
 
-        print(news)
+        return positive_threshold_met, negative_threshold_met
 
-        pass
+    def on_trading_iteration(self):
+
+        # Determine the number of shares to buy
+        cash, last_price, quantity = self.position_sizing()
+
+        # Additional check to ensure enough cash to buy at least one share
+        if cash < last_price:
+            return
+
+        # Get the sentiment signal
+        positive_threshold_met, negative_threshold_met = self.get_sentiments_signal()
+
+        if positive_threshold_met:
+            # price is going up, check is last order was a short
+            if self.last_trade == "sell":
+                # close the short
+                self.sell_all()
+
+            # Setup the order, gain 30% and lose 10%
+            order = self.create_order(
+                self.symbol,
+                quantity,
+                "buy",
+                type="bracket",
+                take_profit_price=last_price * 1.3,
+                stop_loss_price=last_price * 0.9,
+            )
+
+            self.submit_order(order)
+            self.last_trade = "buy"
+
+        elif negative_threshold_met:
+            # price is going down, check if last order was a buy
+            if self.last_trade == "buy":
+                # close the long
+                self.sell_all()
+
+            # Setup the order, gain 30% and lose 10%
+            order = self.create_order(
+                self.symbol,
+                quantity,
+                "sell",
+                type="bracket",
+                take_profit_price=last_price * 0.7,
+                stop_loss_price=last_price * 1.1,
+            )
+
+            self.submit_order(order)
+            self.last_trade = "sell"
+
+        else:
+            # Neutral sentiment, do nothing
+            return
 
 
 broker = Alpaca(ALPACA_CONFIG)
 strategy = SentimentStrat(
     name="Sentiment Strategy",
     broker=broker,
-    parameters={"symbol": "SPY", "cash_at_risk": 0.5},
+    parameters={
+        "symbol": "SPY",
+        "cash_at_risk": 0.5,
+        "threshold_score": 0.8,
+        "threshold_ratio": 0.6,
+    },
 )
 
 
@@ -146,5 +246,10 @@ strategy.backtest(
     YahooDataBacktesting,
     start_date,
     end_date,
-    parameters={"symbol": "SPY", "cash_at_risk": 0.5},
+    parameters={
+        "symbol": "SPY",
+        "cash_at_risk": 0.5,
+        "threshold_score": 0.8,
+        "threshold_ratio": 0.6,
+    },
 )

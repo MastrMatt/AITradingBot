@@ -4,22 +4,18 @@ from transformers import pipeline
 sentiment_analysis = pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
 
-def get_sentiment(text):
+def get_sentiment(text_arr):
     """
     Get the sentiment of a given text using the finbert model
 
     Args:
-    text: str, the text to analyze
+    text_arr: str, the text to analyze
 
     Returns:
     confidence: float, the confidence of the sentiment analysis
     label: str, the sentiment label of the text (positive, negative, neutral)
     """
     # Get the sentiment of the text
+    sentiment_results = sentiment_analysis(text_arr)
 
-    sentiment_results = sentiment_analysis(text)[0]
-
-    return (
-        sentiment_results["score"],
-        sentiment_results["label"],
-    )
+    return sentiment_results
