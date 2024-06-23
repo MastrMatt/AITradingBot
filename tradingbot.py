@@ -38,6 +38,7 @@ class SentimentStrat(Strategy):
         threshold_ratio: float,
         stop_loss: float,
         take_profit: float,
+        days_prior: int,
     ):
         # Initialize alpaca API
         self.api = REST(API_KEY, API_SECRET, ENDPOINT)
@@ -54,6 +55,7 @@ class SentimentStrat(Strategy):
         self.threshold_ratio = threshold_ratio
         self.take_profit = take_profit
         self.stop_loss = stop_loss
+        self.days_prior = days_prior
 
         # some class attributes
         self.last_trade = None
@@ -146,7 +148,7 @@ class SentimentStrat(Strategy):
         print(f"Positive ratio: {positive_ratio}, Negative ratio: {negative_ratio}")
         return (positive_threshold_met, negative_threshold_met)
 
-    def get_sentiments_signal(self, days_prior: int = 3):
+    def get_sentiments_signal(self):
         """
 
         Get the sentiment signal for the stock based on the news. The signal is based on the sentiment analysis of the news articles. The signal is positive if the sentiment is positive and the confidence score is above the threshold, and the signal is negative if the sentiment is negative and the confidence score is above the threshold.
@@ -154,7 +156,7 @@ class SentimentStrat(Strategy):
 
         """
 
-        start_time, end_time = self.get_dates_news(days_prior)
+        start_time, end_time = self.get_dates_news(days_prior=self.days_prior)
 
         # Get the news data
         news = self.api.get_news(self.symbol, start=start_time, end=end_time)
@@ -276,6 +278,7 @@ if __name__ == "__main__":
                 "sleeptime": "24H",
                 "stop_loss": 0.1,
                 "take_profit": 0.3,
+                "days_prior": 3,
             },
             buy_trading_fees=[trading_fee_1, trading_fee_2],
             sell_trading_fees=[trading_fee_1, trading_fee_2],
