@@ -1,3 +1,0 @@
-time,strategy,identifier,symbol,side,type,status,multiplier,time_in_force,asset.strike,asset.multiplier,asset.asset_type,price,filled_quantity,trade_cost
-2020-01-02 09:30:00-05:00,SentimentStrat,df7d01d291904230a6a064a898b6c595,SPY,buy,market,new,1,gtc,0.0,1,stock,,,
-2020-01-02 09:30:00-05:00,SentimentStrat,df7d01d291904230a6a064a898b6c595,SPY,buy,market,fill,1,gtc,0.0,1,stock,323.5400085449219,10.0,0.0

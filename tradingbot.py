@@ -2,6 +2,7 @@ from lumibot.brokers import Alpaca
 from lumibot.backtesting import YahooDataBacktesting
 from lumibot.strategies import Strategy
 from lumibot.traders import Trader
+from lumibot.entities import TradingFee
 from datetime import datetime
 
 import os
@@ -35,6 +36,8 @@ class SentimentStrat(Strategy):
         cash_at_risk: float,
         threshold_score: float,
         threshold_ratio: float,
+        stop_loss: float,
+        take_profit: float,
     ):
         # Initialize alpaca API
         self.api = REST(API_KEY, API_SECRET, ENDPOINT)
@@ -43,12 +46,14 @@ class SentimentStrat(Strategy):
         self.symbol = symbol
 
         # Time to sleep between trading iterations
-        self.sleep_time = "24H"
+        self.sleeptime = "24H"
 
         # Set up my own custom parameters as class attributes
         self.cash_at_risk = cash_at_risk
         self.threshold_score = threshold_score
         self.threshold_ratio = threshold_ratio
+        self.take_profit = take_profit
+        self.stop_loss = stop_loss
 
         # some class attributes
         self.last_trade = None
@@ -138,6 +143,7 @@ class SentimentStrat(Strategy):
         if negative_ratio >= self.threshold_ratio:
             negative_threshold_met = True
 
+        print(f"Positive ratio: {positive_ratio}, Negative ratio: {negative_ratio}")
         return (positive_threshold_met, negative_threshold_met)
 
     def get_sentiments_signal(self, days_prior: int = 3):
@@ -185,7 +191,7 @@ class SentimentStrat(Strategy):
         if positive_threshold_met:
             # price is going up, check is last order was a short
             if self.last_trade == "sell":
-                # close the short
+                # close the short, sell_all() is responsible for closing each open position and cancelling all open orders
                 self.sell_all()
 
             # Setup the order, gain 30% and lose 10%
@@ -194,8 +200,8 @@ class SentimentStrat(Strategy):
                 quantity,
                 "buy",
                 type="bracket",
-                take_profit_price=last_price * 1.3,
-                stop_loss_price=last_price * 0.9,
+                take_profit_price=last_price * (1 + self.take_profit),
+                stop_loss_price=last_price * (1 - self.stop_loss),
             )
 
             self.submit_order(order)
@@ -204,7 +210,7 @@ class SentimentStrat(Strategy):
         elif negative_threshold_met:
             # price is going down, check if last order was a buy
             if self.last_trade == "buy":
-                # close the long
+                # close the long, sell_all() is responsible for closing each open position and cancelling all open orders
                 self.sell_all()
 
             # Setup the order, gain 30% and lose 10%
@@ -213,43 +219,64 @@ class SentimentStrat(Strategy):
                 quantity,
                 "sell",
                 type="bracket",
-                take_profit_price=last_price * 0.7,
-                stop_loss_price=last_price * 1.1,
+                take_profit_price=last_price * (1 - self.take_profit),
+                stop_loss_price=last_price * (1 + self.stop_loss),
             )
 
             self.submit_order(order)
             self.last_trade = "sell"
 
-        else:
-            # Neutral sentiment, do nothing
-            return
 
+if __name__ == "__main__":
 
-broker = Alpaca(ALPACA_CONFIG)
-strategy = SentimentStrat(
-    name="Sentiment Strategy",
-    broker=broker,
-    parameters={
-        "symbol": "SPY",
-        "cash_at_risk": 0.5,
-        "threshold_score": 0.8,
-        "threshold_ratio": 0.6,
-    },
-)
+    # whether to run the strategy in live mode
+    live = False
 
+    # Setup for backtesting and live trading
+    trader = Trader()
 
-# Backtest the strategy
-start_date = datetime(2020, 1, 1)
-end_date = datetime(2020, 1, 20)
+    broker = Alpaca(ALPACA_CONFIG)
 
-strategy.backtest(
-    YahooDataBacktesting,
-    start_date,
-    end_date,
-    parameters={
-        "symbol": "SPY",
-        "cash_at_risk": 0.5,
-        "threshold_score": 0.8,
-        "threshold_ratio": 0.6,
-    },
-)
+    strategy = SentimentStrat(
+        name="Sentiment Strategy",
+        broker=broker,
+        parameters={
+            "symbol": "SPY",
+            "cash_at_risk": 0.5,
+            "threshold_score": 0.8,
+            "threshold_ratio": 0.4,
+            "sleeptime": "24H",
+            "stop_loss": 0.1,
+            "take_profit": 0.3,
+        },
+    )
+
+    if live:
+        trader.add_strategy(strategy)
+        trader.run_all()
+    else:
+
+        # Backtest the strategy
+        start_date = datetime(2020, 1, 1)
+        end_date = datetime(2021, 1, 1)
+
+        # Create two trading fees, one that is a percentage and one that is a flat fee
+        trading_fee_1 = TradingFee(flat_fee=5)  # $5 flat fee
+        trading_fee_2 = TradingFee(percent_fee=0.02)  # 1% trading fee
+
+        strategy.backtest(
+            YahooDataBacktesting,
+            start_date,
+            end_date,
+            parameters={
+                "symbol": "SPY",
+                "cash_at_risk": 0.5,
+                "threshold_score": 0.8,
+                "threshold_ratio": 0.4,
+                "sleeptime": "24H",
+                "stop_loss": 0.1,
+                "take_profit": 0.3,
+            },
+            buy_trading_fees=[trading_fee_1, trading_fee_2],
+            sell_trading_fees=[trading_fee_1, trading_fee_2],
+        )
