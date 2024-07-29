@@ -17,7 +17,7 @@ To run this application locally, follow these steps:
 
 1. **Clone the Repository**:
    ```
-   git clone https://github.com/YourGitHubUsername/lumibot-sentiment-strategy.git
+   git clone https://github.com/MastrMatt/AITradingBot.git
    cd lumibot-sentiment-strategy
    ```
 
