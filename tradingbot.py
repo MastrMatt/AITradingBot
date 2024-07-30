@@ -203,8 +203,8 @@ class SentimentStrat(Strategy):
                 quantity,
                 "buy",
                 type="bracket",
-                take_profit_price=last_price * (1 + self.take_profit),
-                stop_loss_price=last_price * (1 - self.stop_loss),
+                take_profit_price=round(last_price * (1 + self.take_profit)),
+                stop_loss_price=round(last_price * (1 - self.stop_loss)),
             )
 
             self.submit_order(order)
@@ -222,8 +222,8 @@ class SentimentStrat(Strategy):
                 quantity,
                 "sell",
                 type="bracket",
-                take_profit_price=last_price * (1 - self.take_profit),
-                stop_loss_price=last_price * (1 + self.stop_loss),
+                take_profit_price=round(last_price * (1 - self.take_profit)),
+                stop_loss_price=round(last_price * (1 + self.stop_loss)),
             )
 
             self.submit_order(order)
@@ -233,7 +233,7 @@ class SentimentStrat(Strategy):
 if __name__ == "__main__":
 
     # whether to run the strategy in live mode
-    live = True
+    live = False
 
     # Setup for backtesting and live trading
     trader = Trader()
@@ -247,7 +247,7 @@ if __name__ == "__main__":
             "symbol": "SPY",
             "cash_at_risk": 0.5,
             "threshold_score": 0.8,
-            "threshold_ratio": 0.4,
+            "threshold_ratio": 0.2,
             "sleeptime": "2H",
             "stop_loss": 0.1,
             "take_profit": 0.3,
@@ -262,7 +262,7 @@ if __name__ == "__main__":
 
         # Backtest the strategy
         start_date = datetime(2020, 1, 1)
-        end_date = datetime(202, 1, 1)
+        end_date = datetime(2021, 1, 1)
 
         # Create two trading fees, one that is a percentage and one that is a flat fee
         trading_fee_1 = TradingFee(flat_fee=5)  # $5 flat fee
@@ -276,7 +276,7 @@ if __name__ == "__main__":
                 "symbol": "SPY",
                 "cash_at_risk": 0.5,
                 "threshold_score": 0.8,
-                "threshold_ratio": 0.4,
+                "threshold_ratio": 0.2,
                 "sleeptime": "2H",
                 "stop_loss": 0.1,
                 "take_profit": 0.3,
