@@ -39,6 +39,7 @@ class SentimentStrat(Strategy):
         stop_loss: float,
         take_profit: float,
         days_prior: int,
+        sleeptime: str,
     ):
         # Initialize alpaca API
         self.api = REST(API_KEY, API_SECRET, ENDPOINT)
@@ -47,7 +48,7 @@ class SentimentStrat(Strategy):
         self.symbol = symbol
 
         # Time to sleep between trading iterations
-        self.sleeptime = "24H"
+        self.sleeptime = sleeptime
 
         # Set up my own custom parameters as class attributes
         self.cash_at_risk = cash_at_risk
@@ -247,7 +248,7 @@ if __name__ == "__main__":
             "cash_at_risk": 0.5,
             "threshold_score": 0.8,
             "threshold_ratio": 0.4,
-            "sleeptime": "24H",
+            "sleeptime": "2H",
             "stop_loss": 0.1,
             "take_profit": 0.3,
             "days_prior": 3,
@@ -276,7 +277,7 @@ if __name__ == "__main__":
                 "cash_at_risk": 0.5,
                 "threshold_score": 0.8,
                 "threshold_ratio": 0.4,
-                "sleeptime": "24H",
+                "sleeptime": "2H",
                 "stop_loss": 0.1,
                 "take_profit": 0.3,
                 "days_prior": 3,
