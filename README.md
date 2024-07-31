@@ -18,7 +18,7 @@ To run this application locally, follow these steps:
 1. **Clone the Repository**:
    ```
    git clone https://github.com/MastrMatt/AITradingBot.git
-   cd lumibot-sentiment-strategy
+   cd AITradingBot
    ```
 
 2. **Install Dependencies**:
