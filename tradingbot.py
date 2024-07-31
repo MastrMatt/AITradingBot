@@ -233,7 +233,7 @@ class SentimentStrat(Strategy):
 if __name__ == "__main__":
 
     # whether to run the strategy in live mode
-    live = False
+    live = True
 
     # Setup for backtesting and live trading
     trader = Trader()
